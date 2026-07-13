@@ -1,0 +1,1249 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Bounce Ball Odyssey</title>
+    <!-- Tailwind CSS loaded for elegant modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for clean modern icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600&display=swap');
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #03001e;
+            background-image: radial-gradient(circle at center, #1f005c, #03001e);
+            touch-action: none;
+            overflow: hidden;
+        }
+        
+        .orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Neon Glow Utility */
+        .neon-shadow {
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+        }
+        
+        .neon-text-purple {
+            text-shadow: 0 0 10px rgba(168, 85, 247, 0.8), 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .neon-text-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+
+        /* Custom scrollbar for levels overlay */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.5);
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.8);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen text-white select-none">
+
+    <!-- Start Screen & Main UI Container -->
+    <div id="game-container" class="relative flex flex-col items-center w-full max-w-lg p-4 mx-auto">
+        
+        <!-- Header Panel with Title and Highscore -->
+        <header class="w-full flex justify-between items-center mb-2 px-2 z-10">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-wider orbitron neon-text-purple text-purple-400">BOUNCE</h1>
+                <p class="text-xs text-cyan-400 tracking-widest uppercase orbitron neon-text-cyan">Neon Odyssey</p>
+            </div>
+            <div class="text-right">
+                <span class="text-xs text-gray-400 block uppercase">High Score</span>
+                <span id="highscore-display" class="text-xl font-bold orbitron text-yellow-400">0</span>
+            </div>
+        </header>
+
+        <!-- Stats Bar (Stars, Score, Level) -->
+        <div class="w-full bg-black/40 backdrop-blur-md rounded-xl border border-white/10 p-3 mb-3 flex justify-between items-center text-sm orbitron z-10">
+            <div class="flex items-center gap-2">
+                <span class="text-gray-400">STAGE:</span>
+                <span id="stage-badge" class="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded border border-purple-500/30 font-bold">1</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-star text-yellow-400 animate-pulse"></i>
+                    <span id="stars-count" class="font-bold">0/0</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-heart text-red-500"></i>
+                    <span id="deaths-count" class="font-bold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Game Window -->
+        <div class="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border-2 border-purple-500/40 neon-shadow bg-slate-950/80">
+            <!-- Canvas -->
+            <canvas id="game-canvas" class="w-full h-full block"></canvas>
+
+            <!-- Overlay screen for Splash / Game Over / Level Select / Victory -->
+            <div id="overlay" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center transition-all duration-300 z-20">
+                <!-- Main Screen Contents -->
+                <div id="main-menu" class="space-y-6">
+                    <div class="space-y-1">
+                        <i class="fa-solid fa-circle-nodes text-6xl text-purple-500 animate-bounce mb-3"></i>
+                        <h2 class="text-4xl font-black tracking-wide orbitron neon-text-purple">NEON BOUNCE</h2>
+                        <p class="text-gray-400 text-sm">Control the ball, bounce to the glowing exit portal!</p>
+                    </div>
+                    <button id="btn-play" class="w-full max-w-[240px] px-6 py-3 bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 font-bold rounded-xl transition duration-200 transform hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/30">
+                        <i class="fa-solid fa-play mr-2"></i> GAME START
+                    </button>
+                    <button id="btn-levels-menu" class="w-full max-w-[240px] px-6 py-2 bg-slate-800 hover:bg-slate-700 border border-white/10 text-sm font-semibold rounded-xl transition duration-200 block mx-auto">
+                        <i class="fa-solid fa-bars mr-2"></i> LEVEL SELECT
+                    </button>
+                </div>
+
+                <!-- Level Selector Sub-menu -->
+                <div id="level-select" class="hidden w-full max-w-xs space-y-4">
+                    <h3 class="text-2xl font-bold orbitron text-purple-400">SELECT STAGE</h3>
+                    <div id="levels-grid" class="grid grid-cols-4 gap-3 max-h-[220px] overflow-y-auto pr-1 custom-scroll py-2">
+                        <!-- Levels dynamic injection -->
+                    </div>
+                    <button id="btn-back-menu" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs transition duration-200">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> BACK TO MENU
+                    </button>
+                </div>
+
+                <!-- Game Over Overlay -->
+                <div id="game-over-screen" class="hidden space-y-4">
+                    <div class="text-red-500 animate-pulse text-5xl font-black orbitron">CRASHED</div>
+                    <p class="text-gray-400 text-sm">You touched spikes! Keep trying!</p>
+                    <button id="btn-retry" class="px-6 py-2.5 bg-red-600 hover:bg-red-500 font-bold rounded-xl transition duration-200 transform hover:scale-105 active:scale-95">
+                        <i class="fa-solid fa-rotate-left mr-2"></i> RETRY STAGE
+                    </button>
+                </div>
+
+                <!-- Complete Victory Overlay -->
+                <div id="victory-screen" class="hidden space-y-6">
+                    <div class="space-y-2">
+                        <i class="fa-solid fa-trophy text-yellow-400 text-6xl animate-pulse"></i>
+                        <h2 class="text-4xl font-extrabold tracking-wide text-yellow-400 orbitron">CONGRATULATIONS!</h2>
+                        <p class="text-gray-300">You completed the Neon Odyssey!</p>
+                    </div>
+                    <div class="bg-purple-900/40 p-4 rounded-xl border border-purple-500/30 max-w-xs mx-auto space-y-1">
+                        <div class="flex justify-between text-sm"><span class="text-gray-400">Total Deaths:</span> <span id="final-deaths" class="font-bold text-red-400">0</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-400">Star Progress:</span> <span id="final-stars" class="font-bold text-yellow-400">100%</span></div>
+                    </div>
+                    <button id="btn-restart-all" class="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 font-bold rounded-xl transition duration-200 transform hover:scale-105 active:scale-95">
+                        <i class="fa-solid fa-house mr-2"></i> RESET GAME
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom In-Game Dialog Notification (No browser alerts allowed) -->
+            <div id="game-toast" class="absolute top-4 left-1/2 -translate-x-1/2 bg-purple-900/90 border border-purple-400 text-white px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all duration-300 transform -translate-y-20 opacity-0 pointer-events-none orbitron z-30 flex items-center gap-2">
+                <i class="fa-solid fa-bell text-yellow-400 animate-bounce"></i>
+                <span id="toast-text">STAGE CLEAR!</span>
+            </div>
+        </div>
+
+        <!-- Mobile Touch Controllers -->
+        <div class="w-full mt-4 grid grid-cols-2 gap-4">
+            <button id="ctrl-left" class="h-16 active:scale-95 transition-all bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-3xl text-purple-400 shadow-inner hover:bg-slate-800 cursor-pointer select-none">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <button id="ctrl-right" class="h-16 active:scale-95 transition-all bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-3xl text-purple-400 shadow-inner hover:bg-slate-800 cursor-pointer select-none">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Keyboard Guide PC user info -->
+        <footer class="mt-4 text-center text-xs text-slate-500 flex flex-col gap-1 w-full">
+            <p><i class="fa-solid fa-keyboard mr-1"></i> Control with keyboard <span class="bg-slate-800 px-1.5 py-0.5 rounded text-gray-300">A</span> / <span class="bg-slate-800 px-1.5 py-0.5 rounded text-gray-300">D</span> or <span class="bg-slate-800 px-1.5 py-0.5 rounded text-gray-300">◀</span> / <span class="bg-slate-800 px-1.5 py-0.5 rounded text-gray-300">▶</span></p>
+            <p>Restart stage quickly with <span class="bg-slate-800 px-1.5 py-0.5 rounded text-gray-300">R</span></p>
+        </footer>
+
+    </div>
+
+    <script>
+        // Custom Audio synthesizer to provide native cool arcade synth effects
+        const SoundEngine = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            play(type) {
+                this.init();
+                if (!this.ctx) return;
+                
+                const now = this.ctx.currentTime;
+                
+                switch(type) {
+                    case 'jump': {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.exponentialRampToValueAtTime(380, now + 0.15);
+                        
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                        
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.15);
+                        break;
+                    }
+                    case 'highJump': {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(180, now);
+                        osc.frequency.exponentialRampToValueAtTime(650, now + 0.25);
+                        
+                        gain.gain.setValueAtTime(0.12, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                        
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.25);
+                        break;
+                    }
+                    case 'star': {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(523.25, now); // C5
+                        osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                        osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                        osc.frequency.setValueAtTime(1046.50, now + 0.24); // C6
+                        
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                        
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.35);
+                        break;
+                    }
+                    case 'die': {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(180, now);
+                        osc.frequency.linearRampToValueAtTime(40, now + 0.4);
+                        
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                        
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.4);
+                        break;
+                    }
+                    case 'clear': {
+                        const osc1 = this.ctx.createOscillator();
+                        const osc2 = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        
+                        osc1.type = 'sine';
+                        osc1.frequency.setValueAtTime(523.25, now);
+                        osc1.frequency.exponentialRampToValueAtTime(1046.50, now + 0.5);
+                        
+                        osc2.type = 'triangle';
+                        osc2.frequency.setValueAtTime(261.63, now);
+                        osc2.frequency.exponentialRampToValueAtTime(523.25, now + 0.5);
+                        
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                        
+                        osc1.connect(gain);
+                        osc2.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        
+                        osc1.start(now);
+                        osc2.start(now);
+                        osc1.stop(now + 0.5);
+                        osc2.stop(now + 0.5);
+                        break;
+                    }
+                }
+            }
+        };
+
+        // 14 columns x 10 rows grid layout
+        // Legend definitions:
+        // 0: Empty sky
+        // 1: Normal standard neon tile
+        // 2: Spring / High Jump Pad
+        // 3: Spike (Deadly)
+        // 4: Crumbling block (Breaks on jump)
+        // 5: Conveyor Left (pushes ball)
+        // 6: Conveyor Right (pushes ball)
+        // 7: Star / Collectible
+        // 8: Spawn Position (only 1 per level)
+        // 9: Destination Exit Portal
+        const LEVELS = [
+            // Level 1: Welcome to the Neon Climb
+            [
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,9,0,0,0,0,0],
+                [0,0,0,0,0,0,0,1,1,1,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,7,0,0,0,0,0,0,0,7,0,0],
+                [0,0,0,1,1,0,0,0,0,0,1,1,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,8,0,0,0,0,1,1,1,0,0,0,0,0],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            // Level 2: Spring Launch
+            [
+                [0,0,0,0,0,0,0,0,0,0,0,9,0,0],
+                [0,0,0,0,0,0,0,0,0,0,1,1,1,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,7,0,0,0,0,1,1,0,0,0,0],
+                [0,0,0,1,1,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,1,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,8,0,0,2,0,0,0,0,7,0,0,0,0],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            // Level 3: Spikes Alley
+            [
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,9,0,0],
+                [0,0,0,0,0,0,0,0,0,0,1,1,1,0],
+                [0,0,0,0,7,0,0,0,0,0,0,0,0,0],
+                [0,0,0,1,1,1,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,1,1,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,8,0,0,0,0,0,0,7,0,0,0,0,0],
+                [1,1,0,0,3,3,3,1,1,1,0,0,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            // Level 4: Crumbling Bridges
+            [
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,9,0,0,0,0,0,0,0,0,0,0,0],
+                [0,1,1,1,0,0,0,7,0,0,0,7,0,0],
+                [0,0,0,0,0,4,4,4,4,4,4,1,1,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,7,0,0,0,0,0,0,0,0,0,0],
+                [0,0,1,1,1,0,0,0,0,0,0,0,0,0],
+                [0,8,0,0,0,0,0,0,0,2,0,0,0,0],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            // Level 5: Conveyor Run
+            [
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,8,0,0,0,0,0,0,0,0,0,0,0,9],
+                [1,1,1,0,0,0,0,0,0,0,0,1,1,1],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,7,0,0,0,0,7,0,0,0,0],
+                [0,0,0,6,6,6,0,0,5,5,5,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,2,2,0,0,0,0,0,0],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            // Level 6: Deadly Pit Escape
+            [
+                [0,9,0,0,0,0,0,0,0,0,0,0,0,0],
+                [1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,7,0,0,0,0],
+                [0,0,0,0,0,0,0,0,1,1,1,0,0,0],
+                [0,0,0,7,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,1,1,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,2,0,0],
+                [0,8,0,0,0,0,0,0,0,0,1,1,1,0],
+                [1,1,3,3,3,3,3,3,3,3,3,3,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            // Level 7: High Sky Precision
+            [
+                [0,0,0,0,0,0,0,0,0,0,0,0,9,0],
+                [0,0,0,0,0,0,0,0,0,0,0,1,1,1],
+                [0,0,0,0,7,0,0,0,7,0,0,0,0,0],
+                [0,0,0,4,4,4,0,4,4,4,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,7,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,1,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,2,0,0,0,0,0,0,0],
+                [0,8,0,0,0,1,1,1,0,0,0,0,0,0],
+                [1,1,3,3,1,1,1,1,1,3,3,1,1,1]
+            ],
+            // Level 8: Ultimate Gauntlet
+            [
+                [0,9,0,0,0,0,0,0,0,0,0,0,7,0],
+                [1,1,1,1,0,0,0,0,0,0,0,1,1,1],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,4,3,3,4,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,7,0,0,0,0,0,0,0,0,7,0,0],
+                [0,1,1,1,0,0,0,0,0,0,1,1,1,0],
+                [0,0,0,0,0,2,0,0,2,0,0,0,0,0],
+                [0,8,0,0,0,1,1,1,1,0,0,0,0,0],
+                [1,1,3,3,3,1,1,1,1,3,3,3,1,1]
+            ]
+        ];
+
+        const GRID_COLS = 14;
+        const GRID_ROWS = 10;
+        
+        let canvas = document.getElementById('game-canvas');
+        let ctx = canvas.getContext('2d');
+        
+        // Match canvas coordinate workspace explicitly
+        const WORKSPACE_WIDTH = 800;
+        const WORKSPACE_HEIGHT = 600;
+        canvas.width = WORKSPACE_WIDTH;
+        canvas.height = WORKSPACE_HEIGHT;
+
+        // System state variables
+        let currentLevelIndex = 0;
+        let highscore = parseInt(localStorage.getItem('bounce_neon_highscore')) || 0;
+        let score = 0;
+        let deaths = 0;
+        let state = 'menu'; // 'menu', 'playing', 'gameover', 'victory'
+        let starsCollected = 0;
+        let totalStarsInLevel = 0;
+        let levelGrid = [];
+        
+        // Physics and timing multipliers
+        const GRAVITY = 0.45;
+        const BOUNCE_VELOCITY = -9.2;
+        const HIGH_BOUNCE_VELOCITY = -13.5;
+        const HORIZONTAL_SPEED = 5.2;
+        const CONVEYOR_SPEED = 2.0;
+
+        // The Player Ball Object
+        const ball = {
+            x: 0,
+            y: 0,
+            radius: 12,
+            vx: 0,
+            vy: 0,
+            trail: [],
+            maxTrailLength: 10,
+            color: '#c084fc',
+            glowColor: 'rgba(168, 85, 247, 0.8)'
+        };
+
+        // Inputs Map
+        const inputs = {
+            left: false,
+            right: false
+        };
+
+        // Breakable blocks timer map
+        let crumblingBlocks = []; // Array tracking blocks that are actively breaking
+
+        // Visual effects lists
+        let particles = [];
+        let screenShake = { duration: 0, intensity: 0 };
+
+        document.getElementById('highscore-display').innerText = highscore;
+
+        // UI Event Listeners
+        document.getElementById('btn-play').addEventListener('click', () => {
+            loadLevel(0);
+            startGameLoop();
+        });
+
+        document.getElementById('btn-levels-menu').addEventListener('click', () => {
+            showLevelSelect();
+        });
+
+        document.getElementById('btn-back-menu').addEventListener('click', () => {
+            showMainMenu();
+        });
+
+        document.getElementById('btn-retry').addEventListener('click', () => {
+            retryStage();
+        });
+
+        document.getElementById('btn-restart-all').addEventListener('click', () => {
+            resetGlobalProgress();
+        });
+
+        // Keyboard Controls Setup
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                inputs.left = true;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                inputs.right = true;
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                if (state === 'playing') {
+                    triggerDeath();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                inputs.left = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                inputs.right = false;
+            }
+        });
+
+        // Touch Control bindings
+        const touchLeft = document.getElementById('ctrl-left');
+        const touchRight = document.getElementById('ctrl-right');
+
+        // Left button triggers
+        touchLeft.addEventListener('touchstart', (e) => { e.preventDefault(); inputs.left = true; });
+        touchLeft.addEventListener('touchend', (e) => { e.preventDefault(); inputs.left = false; });
+        touchLeft.addEventListener('mousedown', () => { inputs.left = true; });
+        touchLeft.addEventListener('mouseup', () => { inputs.left = false; });
+        touchLeft.addEventListener('mouseleave', () => { inputs.left = false; });
+
+        // Right button triggers
+        touchRight.addEventListener('touchstart', (e) => { e.preventDefault(); inputs.right = true; });
+        touchRight.addEventListener('touchend', (e) => { e.preventDefault(); inputs.right = false; });
+        touchRight.addEventListener('mousedown', () => { inputs.right = true; });
+        touchRight.addEventListener('mouseup', () => { inputs.right = false; });
+        touchRight.addEventListener('mouseleave', () => { inputs.right = false; });
+
+        function createExplosion(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 5;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 2 + Math.random() * 4,
+                    color: color,
+                    alpha: 1,
+                    decay: 0.02 + Math.random() * 0.03
+                });
+            }
+        }
+
+        function createBounceSparkles(x, y, color) {
+            for (let i = 0; i < 6; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: -Math.random() * 3 - 1,
+                    size: 1.5 + Math.random() * 2,
+                    color: color,
+                    alpha: 1,
+                    decay: 0.04
+                });
+            }
+        }
+
+        function triggerScreenShake(duration, intensity) {
+            screenShake.duration = duration;
+            screenShake.intensity = intensity;
+        }
+
+        function triggerToast(message) {
+            const toast = document.getElementById('game-toast');
+            const txt = document.getElementById('toast-text');
+            txt.innerText = message;
+            toast.classList.remove('opacity-0', '-translate-y-20');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-20');
+            }, 1800);
+        }
+
+        function loadLevel(levelIndex) {
+            currentLevelIndex = levelIndex;
+            const blueprint = LEVELS[levelIndex];
+            
+            // Re-clone grid structure
+            levelGrid = JSON.parse(JSON.stringify(blueprint));
+            crumblingBlocks = [];
+            particles = [];
+            
+            // Audit assets inside the level grid
+            starsCollected = 0;
+            totalStarsInLevel = 0;
+            
+            for (let r = 0; r < GRID_ROWS; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    const tile = levelGrid[r][c];
+                    if (tile === 8) {
+                        // Spawn ball center-bottom of tile
+                        const tileW = WORKSPACE_WIDTH / GRID_COLS;
+                        const tileH = WORKSPACE_HEIGHT / GRID_ROWS;
+                        ball.x = c * tileW + tileW / 2;
+                        ball.y = r * tileH + tileH / 2;
+                        ball.vx = 0;
+                        ball.vy = 0;
+                        ball.trail = [];
+                    } else if (tile === 7) {
+                        totalStarsInLevel++;
+                    }
+                }
+            }
+
+            // Sync indicators
+            document.getElementById('stage-badge').innerText = (levelIndex + 1);
+            updateStarsDisplay();
+            
+            state = 'playing';
+            document.getElementById('overlay').classList.add('hidden');
+        }
+
+        function updateStarsDisplay() {
+            document.getElementById('stars-count').innerText = `${starsCollected}/${totalStarsInLevel}`;
+        }
+
+        function collectStar(r, c, tileW, tileH) {
+            levelGrid[r][c] = 0;
+            starsCollected++;
+            SoundEngine.play('star');
+            createExplosion(c * tileW + tileW/2, r * tileH + tileH/2, '#fbbf24', 15);
+            updateStarsDisplay();
+        }
+
+        function updatePhysics() {
+            if (state !== 'playing') return;
+
+            // Decay screen shake
+            if (screenShake.duration > 0) {
+                screenShake.duration--;
+            }
+
+            // Update trail
+            ball.trail.push({ x: ball.x, y: ball.y });
+            if (ball.trail.length > ball.maxTrailLength) {
+                ball.trail.shift();
+            }
+
+            // Horizontal input processing
+            let speedMod = 0;
+            if (inputs.left) speedMod -= HORIZONTAL_SPEED;
+            if (inputs.right) speedMod += HORIZONTAL_SPEED;
+
+            // Apply gravity
+            ball.vy += GRAVITY;
+            
+            // Grid parameters
+            const tileW = WORKSPACE_WIDTH / GRID_COLS;
+            const tileH = WORKSPACE_HEIGHT / GRID_ROWS;
+
+            // Perform careful horizontal physics step
+            ball.x += speedMod;
+            handleHorizontalCollisions(tileW, tileH);
+
+            // Vertical physics step
+            ball.y += ball.vy;
+            handleVerticalCollisions(tileW, tileH);
+
+            // Boundary limits
+            if (ball.x - ball.radius < 0) {
+                ball.x = ball.radius;
+                ball.vx = 0;
+            }
+            if (ball.x + ball.radius > WORKSPACE_WIDTH) {
+                ball.x = WORKSPACE_WIDTH - ball.radius;
+                ball.vx = 0;
+            }
+
+            // Bottom pit boundary falls
+            if (ball.y - ball.radius > WORKSPACE_HEIGHT) {
+                triggerDeath();
+            }
+
+            // Update active particles array
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Update crumbling tiles timer
+            for (let i = crumblingBlocks.length - 1; i >= 0; i--) {
+                const cb = crumblingBlocks[i];
+                cb.timer -= 1;
+                if (cb.timer <= 0) {
+                    levelGrid[cb.r][cb.c] = 0; // block is fully gone
+                    createExplosion(cb.c * tileW + tileW/2, cb.r * tileH + tileH/2, '#06b6d4', 8);
+                    crumblingBlocks.splice(i, 1);
+                }
+            }
+        }
+
+        function handleHorizontalCollisions(tileW, tileH) {
+            // Check bounding corners around ball horizontally (with safe inward offset)
+            const checkPoints = [
+                { x: ball.x - ball.radius, y: ball.y - ball.radius + 3 },
+                { x: ball.x - ball.radius, y: ball.y + ball.radius - 3 },
+                { x: ball.x + ball.radius, y: ball.y - ball.radius + 3 },
+                { x: ball.x + ball.radius, y: ball.y + ball.radius - 3 }
+            ];
+
+            for (const pt of checkPoints) {
+                const c = Math.floor(pt.x / tileW);
+                const r = Math.floor(pt.y / tileH);
+                
+                if (r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS) {
+                    const tile = levelGrid[r][c];
+                    
+                    if (tile === 3) { // Spike check
+                        triggerDeath();
+                        return;
+                    }
+                    
+                    if (tile === 7) { // Collect Star
+                        collectStar(r, c, tileW, tileH);
+                    }
+                    
+                    if (tile === 9) { // Goal Portal
+                        checkStageClear();
+                        return;
+                    }
+
+                    // Push out of solid block walls
+                    if (isSolid(tile)) {
+                        if (ball.x < c * tileW + tileW / 2) {
+                            ball.x = c * tileW - ball.radius;
+                        } else {
+                            ball.x = (c + 1) * tileW + ball.radius;
+                        }
+                    }
+                }
+            }
+        }
+
+        function handleVerticalCollisions(tileW, tileH) {
+            // 1. DOWNWARD COLLISIONS (Bottom Sensors only active when falling/neutral)
+            if (ball.vy >= 0) {
+                const bottomPoints = [
+                    { x: ball.x - ball.radius + 3, y: ball.y + ball.radius },
+                    { x: ball.x + ball.radius - 3, y: ball.y + ball.radius }
+                ];
+
+                for (const pt of bottomPoints) {
+                    const c = Math.floor(pt.x / tileW);
+                    const r = Math.floor(pt.y / tileH);
+
+                    if (r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS) {
+                        const tile = levelGrid[r][c];
+
+                        if (tile === 3) { // Spikes
+                            triggerDeath();
+                            return;
+                        }
+
+                        if (tile === 7) { // Star
+                            collectStar(r, c, tileW, tileH);
+                        }
+
+                        if (tile === 9) { // Portal
+                            checkStageClear();
+                            return;
+                        }
+
+                        if (isSolid(tile)) {
+                            // Falling Down Collision Resolution
+                            if (ball.y + ball.radius >= r * tileH) {
+                                ball.y = r * tileH - ball.radius;
+                                
+                                if (tile === 2) { // Spring Pad
+                                    ball.vy = HIGH_BOUNCE_VELOCITY;
+                                    SoundEngine.play('highJump');
+                                    createBounceSparkles(ball.x, ball.y + ball.radius, '#10b981');
+                                    triggerScreenShake(8, 4);
+                                } else { // Normal Block
+                                    ball.vy = BOUNCE_VELOCITY;
+                                    SoundEngine.play('jump');
+                                    createBounceSparkles(ball.x, ball.y + ball.radius, '#a855f7');
+                                }
+
+                                if (tile === 4) { // Crumble Block
+                                    triggerCrumble(r, c);
+                                }
+                                break; // Break loop immediately after landing to prevent multi-point conflicts
+                            }
+                        }
+                    }
+                }
+            } 
+            // 2. UPWARD COLLISIONS (Top Sensors only active when moving up)
+            else if (ball.vy < 0) {
+                const topPoints = [
+                    { x: ball.x - ball.radius + 3, y: ball.y - ball.radius },
+                    { x: ball.x + ball.radius - 3, y: ball.y - ball.radius }
+                ];
+
+                for (const pt of topPoints) {
+                    const c = Math.floor(pt.x / tileW);
+                    const r = Math.floor(pt.y / tileH);
+
+                    if (r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS) {
+                        const tile = levelGrid[r][c];
+
+                        if (tile === 3) {
+                            triggerDeath();
+                            return;
+                        }
+
+                        if (tile === 7) {
+                            collectStar(r, c, tileW, tileH);
+                        }
+
+                        if (tile === 9) {
+                            checkStageClear();
+                            return;
+                        }
+
+                        if (isSolid(tile)) {
+                            // Ceiling collision Resolution
+                            if (ball.y - ball.radius <= (r + 1) * tileH) {
+                                ball.y = (r + 1) * tileH + ball.radius;
+                                ball.vy = 0; // Cancel upward velocity
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. CONVEYOR FORCE SLIDING CHECK (Under-ball check)
+            const underC = Math.floor(ball.x / tileW);
+            const underR = Math.floor((ball.y + ball.radius + 1) / tileH);
+            if (underR >= 0 && underR < GRID_ROWS && underC >= 0 && underC < GRID_COLS) {
+                const underTile = levelGrid[underR][underC];
+                if (underTile === 5) {
+                    ball.x -= CONVEYOR_SPEED; // Conveyor Left
+                } else if (underTile === 6) {
+                    ball.x += CONVEYOR_SPEED; // Conveyor Right
+                }
+            }
+        }
+
+        function isSolid(tileId) {
+            // Solid tiles: normal block(1), high spring(2), breaking block(4), conveyors(5, 6)
+            return [1, 2, 4, 5, 6].includes(tileId);
+        }
+
+        function triggerCrumble(r, c) {
+            const exists = crumblingBlocks.some(cb => cb.r === r && cb.c === c);
+            if (!exists) {
+                crumblingBlocks.push({ r, c, timer: 12 });
+            }
+        }
+
+        function draw() {
+            // Apply screenshake transform context if active
+            ctx.save();
+            if (screenShake.duration > 0) {
+                const dx = (Math.random() - 0.5) * screenShake.intensity;
+                const dy = (Math.random() - 0.5) * screenShake.intensity;
+                ctx.translate(dx, dy);
+            }
+
+            // Core dark grid backdrop
+            ctx.fillStyle = '#08051a';
+            ctx.fillRect(0, 0, WORKSPACE_WIDTH, WORKSPACE_HEIGHT);
+
+            // Draw deep space starry particle environment grid
+            drawGridBackground();
+
+            // Render Level Matrix
+            const tileW = WORKSPACE_WIDTH / GRID_COLS;
+            const tileH = WORKSPACE_HEIGHT / GRID_ROWS;
+
+            for (let r = 0; r < GRID_ROWS; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    const tile = levelGrid[r][c];
+                    if (tile !== 0 && tile !== 8) {
+                        drawTile(tile, c * tileW, r * tileH, tileW, tileH, r, c);
+                    }
+                }
+            }
+
+            // Render Ball Trail
+            for (let i = 0; i < ball.trail.length; i++) {
+                const pt = ball.trail[i];
+                const ratio = (i + 1) / ball.trail.length;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, ball.radius * ratio, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(168, 85, 247, ${0.15 * ratio})`;
+                ctx.fill();
+            }
+
+            // Render Player Neon Ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = ball.glowColor;
+            ctx.fill();
+            ctx.shadowBlur = 0; // Clear shadow settings
+
+            // Draw inner glossy core reflection of the ball
+            ctx.beginPath();
+            ctx.arc(ball.x - 3, ball.y - 3, 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fill();
+
+            // Render active game particles
+            for (const p of particles) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = p.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1.0;
+            }
+
+            ctx.restore();
+        }
+
+        function drawGridBackground() {
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.05)';
+            ctx.lineWidth = 1;
+            
+            const cellW = WORKSPACE_WIDTH / GRID_COLS;
+            const cellH = WORKSPACE_HEIGHT / GRID_ROWS;
+            
+            for (let i = 0; i <= GRID_COLS; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * cellW, 0);
+                ctx.lineTo(i * cellW, WORKSPACE_HEIGHT);
+                ctx.stroke();
+            }
+            for (let j = 0; j <= GRID_ROWS; j++) {
+                ctx.beginPath();
+                ctx.moveTo(0, j * cellH);
+                ctx.lineTo(WORKSPACE_WIDTH, j * cellH);
+                ctx.stroke();
+            }
+        }
+
+        function drawTile(type, x, y, w, h, r, c) {
+            switch(type) {
+                case 1: // Normal block
+                    ctx.fillStyle = '#4f46e5';
+                    ctx.strokeStyle = '#818cf8';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 2: // High Jump Spring
+                    ctx.fillStyle = '#065f46';
+                    ctx.strokeStyle = '#34d399';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Draw chevron indicator arrow pointing upwards
+                    ctx.strokeStyle = '#34d399';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x + w/2 - 8, y + h/2 + 4);
+                    ctx.lineTo(x + w/2, y + h/2 - 4);
+                    ctx.lineTo(x + w/2 + 8, y + h/2 + 4);
+                    ctx.stroke();
+                    break;
+
+                case 3: // Deadly spikes
+                    ctx.fillStyle = '#991b1b';
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    const spikeW = w / 3;
+                    for (let i = 0; i < 3; i++) {
+                        ctx.moveTo(x + i * spikeW, y + h);
+                        ctx.lineTo(x + i * spikeW + spikeW / 2, y + 4);
+                        ctx.lineTo(x + (i + 1) * spikeW, y + h);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 4: // Breakable crumble blocks
+                    const isBreaking = crumblingBlocks.find(cb => cb.r === r && cb.c === c);
+                    if (isBreaking) {
+                        ctx.fillStyle = `rgba(14, 116, 144, ${isBreaking.timer / 12})`;
+                        ctx.strokeStyle = `rgba(34, 211, 238, ${isBreaking.timer / 12})`;
+                    } else {
+                        ctx.fillStyle = '#0e7490';
+                        ctx.strokeStyle = '#22d3ee';
+                    }
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Crack lines
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 4, y + 4);
+                    ctx.lineTo(x + w - 4, y + h - 4);
+                    ctx.moveTo(x + w - 6, y + 5);
+                    ctx.lineTo(x + 5, y + h - 6);
+                    ctx.stroke();
+                    break;
+
+                case 5: // Conveyor Left
+                    ctx.fillStyle = '#1e3a8a';
+                    ctx.strokeStyle = '#3b82f6';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Draw arrow left signs
+                    ctx.strokeStyle = '#60a5fa';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(x + w/2 + 4, y + h/2 - 6);
+                    ctx.lineTo(x + w/2 - 4, y + h/2);
+                    ctx.lineTo(x + w/2 + 4, y + h/2 + 6);
+                    ctx.stroke();
+                    break;
+
+                case 6: // Conveyor Right
+                    ctx.fillStyle = '#1e3a8a';
+                    ctx.strokeStyle = '#3b82f6';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Draw arrow right signs
+                    ctx.strokeStyle = '#60a5fa';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(x + w/2 - 4, y + h/2 - 6);
+                    ctx.lineTo(x + w/2 + 4, y + h/2);
+                    ctx.lineTo(x + w/2 - 4, y + h/2 + 6);
+                    ctx.stroke();
+                    break;
+
+                case 7: // Yellow Stars items
+                    const pulse = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+                    const cx = x + w/2;
+                    const cy = y + h/2;
+                    ctx.fillStyle = '#eab308';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#eab308';
+                    ctx.beginPath();
+                    drawStarShape(cx, cy, 5, 10 * pulse, 5 * pulse);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    break;
+
+                case 9: // Portal Target Hole
+                    const rotation = (Date.now() * 0.005) % (Math.PI * 2);
+                    const portalCX = x + w/2;
+                    const portalCY = y + h/2;
+                    
+                    ctx.save();
+                    ctx.translate(portalCX, portalCY);
+                    ctx.rotate(rotation);
+                    
+                    ctx.strokeStyle = '#ec4899';
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#ec4899';
+                    
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.setLineDash([4, 6]);
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                    break;
+            }
+        }
+
+        function drawStarShape(cx, cy, spikes, outerRadius, innerRadius) {
+            let rot = Math.PI / 2 * 3;
+            let x = cx;
+            let y = cy;
+            let step = Math.PI / spikes;
+
+            ctx.moveTo(cx, cy - outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                x = cx + Math.cos(rot) * outerRadius;
+                y = cy + Math.sin(rot) * outerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+
+                x = cx + Math.cos(rot) * innerRadius;
+                y = cy + Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            ctx.lineTo(cx, cy - outerRadius);
+            ctx.closePath();
+        }
+
+        function checkStageClear() {
+            if (starsCollected < totalStarsInLevel) {
+                triggerToast("COLLECT ALL STARS!");
+                ball.vy = BOUNCE_VELOCITY; // soft bounce away from portal
+                return;
+            }
+            
+            SoundEngine.play('clear');
+            score += 1000 + (totalStarsInLevel * 100);
+            updateHighscore();
+
+            const nextLevel = currentLevelIndex + 1;
+            if (nextLevel < LEVELS.length) {
+                triggerToast(`STAGE ${currentLevelIndex + 1} CLEAR!`);
+                setTimeout(() => {
+                    loadLevel(nextLevel);
+                }, 800);
+            } else {
+                showVictory();
+            }
+        }
+
+        function triggerDeath() {
+            state = 'gameover';
+            SoundEngine.play('die');
+            deaths++;
+            document.getElementById('deaths-count').innerText = deaths;
+            createExplosion(ball.x, ball.y, '#ef4444', 25);
+            triggerScreenShake(20, 8);
+
+            // Toggle retry overlay after a slight delay
+            setTimeout(() => {
+                if (state === 'gameover') {
+                    showGameOverScreen();
+                }
+            }, 500);
+        }
+
+        function updateHighscore() {
+            if (score > highscore) {
+                highscore = score;
+                localStorage.setItem('bounce_neon_highscore', highscore);
+                document.getElementById('highscore-display').innerText = highscore;
+            }
+        }
+
+        function retryStage() {
+            loadLevel(currentLevelIndex);
+        }
+
+        function resetGlobalProgress() {
+            score = 0;
+            deaths = 0;
+            document.getElementById('deaths-count').innerText = 0;
+            showMainMenu();
+        }
+
+        function showMainMenu() {
+            state = 'menu';
+            document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+            document.getElementById('level-select').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('victory-screen').classList.add('hidden');
+        }
+
+        function showLevelSelect() {
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('level-select').classList.remove('hidden');
+            
+            const grid = document.getElementById('levels-grid');
+            grid.innerHTML = '';
+            
+            LEVELS.forEach((level, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'py-3 rounded-lg border font-bold text-center orbitron transition bg-purple-900/40 hover:bg-purple-600/60 border-purple-500/30 hover:border-purple-400';
+                btn.innerText = index + 1;
+                btn.onclick = () => {
+                    loadLevel(index);
+                    startGameLoop();
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function showGameOverScreen() {
+            document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('level-select').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            document.getElementById('victory-screen').classList.add('hidden');
+        }
+
+        function showVictory() {
+            state = 'victory';
+            document.getElementById('final-deaths').innerText = deaths;
+            document.getElementById('final-stars').innerText = "100%";
+            
+            document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('level-select').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('victory-screen').classList.remove('hidden');
+        }
+
+        let animationFrameId = null;
+
+        function gameLoop() {
+            updatePhysics();
+            draw();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function startGameLoop() {
+            if (!animationFrameId) {
+                gameLoop();
+            }
+        }
+
+        // Run application on window mount
+        window.onload = function() {
+            showMainMenu();
+        };
+    </script>
+</body>
+</html>
